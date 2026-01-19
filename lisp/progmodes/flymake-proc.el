@@ -791,14 +791,13 @@ can also be executed interactively independently of
         ;; in the near future.
         (and (or (not flymake-proc-compilation-prevents-syntax-check)
                  (not (flymake-proc--compilation-is-running))))
-      (let ((init-f
-             (and
-              buffer-file-name
-              ;; Since we write temp files in current dir, there's no point
-              ;; trying if the directory is read-only (bug#8954).
-              (file-writable-p (file-name-directory buffer-file-name))
-              (flymake-proc--get-init-function buffer-file-name))))
-        (unless init-f (error "Can't find a suitable init function"))
+      (when-let* ((init-f
+                   (and
+                    buffer-file-name
+                    ;; Since we write temp files in current dir, there's no point
+                    ;; trying if the directory is read-only (bug#8954).
+                    (file-writable-p (file-name-directory buffer-file-name))
+                    (flymake-proc--get-init-function buffer-file-name))))
         (flymake-proc--clear-buildfile-cache)
         (flymake-proc--clear-project-include-dirs-cache)
 
