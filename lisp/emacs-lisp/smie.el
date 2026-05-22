@@ -1815,7 +1815,10 @@ to which that point should be aligned, if we were to reindent it.")
 
 (defun smie-indent-calculate ()
   "Compute the indentation to use for point."
-  (run-hook-wrapped 'smie-indent-functions #'smie--funcall))
+  (let ((result (run-hook-wrapped 'smie-indent-functions #'smie--funcall)))
+    (if (numberp result)
+        result
+      (current-indentation))))
 
 (defun smie-indent-line ()
   "Indent current line using the SMIE indentation engine."
