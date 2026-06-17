@@ -177,6 +177,13 @@ This variable is expected to be made buffer-local by modes.")
   :group 'hl-line)
 
 
+(defun hl-line--redisplay-once (window)
+  "Update Hl-Line overlay once before WINDOW is redisplayed, then remove."
+  (when (and (eq (window-buffer window) (current-buffer))
+             (> (buffer-size) 0))
+    (hl-line-highlight)
+    (remove-hook 'pre-redisplay-functions #'hl-line--redisplay-once t)))
+
 ;;;###autoload
 (define-minor-mode hl-line-mode
   "Toggle highlighting of the current line (Hl-Line mode).
@@ -204,8 +211,10 @@ line about point in the selected window only."
         (add-hook 'change-major-mode-hook #'hl-line-unhighlight nil t)
         (hl-line-highlight)
         (setq hl-line-overlay-buffer (current-buffer))
-	(add-hook 'post-command-hook #'hl-line-highlight nil t))
+        (add-hook 'post-command-hook #'hl-line-highlight nil t)
+        (add-hook 'pre-redisplay-functions #'hl-line--redisplay-once nil t))
     (remove-hook 'post-command-hook #'hl-line-highlight t)
+    (remove-hook 'pre-redisplay-functions #'hl-line--redisplay-once t)
     (hl-line-unhighlight)
     (remove-hook 'change-major-mode-hook #'hl-line-unhighlight t)))
 
@@ -250,6 +259,20 @@ such overlays in all buffers except the current one."
       (setq hl-line-overlay-buffer curbuf))))
 
 
+(defvar-local global-hl-line--initialized nil
+  "Flag to ensure global highlight is updated once after async insertion.")
+
+(defun hl-line--global-redisplay-init (window)
+  "Update Global-Hl-Line overlay once per buffer before WINDOW is redisplayed."
+  (with-current-buffer (window-buffer window)
+    (when (and (not global-hl-line--initialized)
+               (buffer-match-p global-hl-line-buffers (current-buffer))
+               (> (buffer-size) 0))
+      (setq global-hl-line--initialized t)
+      (if (eq global-hl-line-sticky-flag 'all)
+          (global-hl-line-highlight-all)
+        (global-hl-line-highlight)))))
+
 ;;;###autoload
 (define-minor-mode global-hl-line-mode
   "Toggle line highlighting in all buffers (Global Hl-Line mode).
@@ -280,7 +303,8 @@ on `post-command-hook'."
         (global-hl-line-highlight-all)
         (add-hook 'post-command-hook (if (eq global-hl-line-sticky-flag 'all)
                                          #'global-hl-line-highlight-all
-                                       #'global-hl-line-highlight))))
+                                       #'global-hl-line-highlight))
+        (add-hook 'pre-redisplay-functions #'hl-line--global-redisplay-init))))
     (cond
      ((eq global-hl-line-sticky-flag 'window)
       (remove-hook 'pre-redisplay-functions
@@ -294,7 +318,8 @@ on `post-command-hook'."
       (global-hl-line-unhighlight-all)
       (remove-hook 'post-command-hook #'global-hl-line-highlight)
       (remove-hook 'post-command-hook #'global-hl-line-highlight-all)
-      (remove-hook 'change-major-mode-hook #'global-hl-line-unhighlight)))))
+      (remove-hook 'change-major-mode-hook #'global-hl-line-unhighlight)
+      (remove-hook 'pre-redisplay-functions #'hl-line--global-redisplay-init))))
 
 (defun global-hl-line-highlight ()
   "Highlight the current line in the current window."
