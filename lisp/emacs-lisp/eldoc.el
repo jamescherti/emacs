@@ -814,6 +814,7 @@ all."
 (defun eldoc--supported-p ()
   "Non-nil if an ElDoc function is set for this buffer."
   (and (not (memq eldoc-documentation-strategy '(nil ignore)))
+       (not (string-prefix-p " " (buffer-name)))
        (or eldoc-documentation-functions
            ;; The old API had major modes set `eldoc-documentation-function'
            ;; to provide eldoc support.  It's impossible now to determine
