@@ -946,41 +946,47 @@ the match data is set appropriately."
 (defun outline-move-subtree-down (&optional arg)
   "Move the current subtree down past ARG headlines of the same level."
   (interactive "p")
-  (outline-back-to-heading)
-  (let* ((movfunc (if (> arg 0) 'outline-get-next-sibling
-		    'outline-get-last-sibling))
-	 ;; Find the end of the subtree to be moved as well as the point to
-	 ;; move it to, adding a newline if necessary, to ensure these points
-	 ;; are at bol on the line below the subtree.
-         (end-point-func (lambda ()
-			   (let ((outline-blank-line nil))
-			     (outline-end-of-subtree))
-			   (if (eq (char-after) ?\n) (forward-char 1)
-				(if (and (eobp) (not (bolp))) (insert "\n")))
-			   (point)))
-         (beg (point))
-         (folded (save-match-data
-		   (outline-end-of-heading)
-		   (outline-invisible-p)))
-         (end (save-match-data
-		(funcall end-point-func)))
-         (ins-point (make-marker))
-         (cnt (abs arg)))
-    ;; Find insertion point, with error handling.
-    (goto-char beg)
-    (while (> cnt 0)
-      (or (funcall movfunc)
-	  (progn (goto-char beg)
-		 (user-error "Cannot move past superior level")))
-      (setq cnt (1- cnt)))
-    (if (> arg 0)
-	;; Moving forward - still need to move over subtree.
-	(funcall end-point-func))
-    (move-marker ins-point (point))
-    (insert (delete-and-extract-region beg end))
-    (goto-char ins-point)
-    (if folded (outline-hide-subtree))
-    (move-marker ins-point nil)))
+  ;; Preserve the cursor column across the subtree move.
+  (let ((column (current-column)))
+    (progn
+      (outline-back-to-heading)
+      (let* ((movfunc (if (> arg 0) 'outline-get-next-sibling
+                        'outline-get-last-sibling))
+             ;; Find the end of the subtree to be moved as well as the point to
+             ;; move it to, adding a newline if necessary, to ensure these points
+             ;; are at bol on the line below the subtree.
+             (end-point-func (lambda ()
+                               (let ((outline-blank-line nil))
+                                 (outline-end-of-subtree))
+                               (if (eq (char-after) ?\n) (forward-char 1)
+                                 (if (and (eobp) (not (bolp))) (insert "\n")))
+                               (point)))
+             (beg (point))
+             (folded (save-match-data
+                       (outline-end-of-heading)
+                       (outline-invisible-p)))
+             (end (save-match-data
+                    (funcall end-point-func)))
+             (ins-point (make-marker))
+             (cnt (abs arg)))
+        ;; Find insertion point, with error handling.
+        (goto-char beg)
+        (while (> cnt 0)
+          (or (funcall movfunc)
+              (progn (goto-char beg)
+                     (user-error "Cannot move past superior level")))
+          (setq cnt (1- cnt)))
+        (if (> arg 0)
+            ;; Moving forward - still need to move over subtree.
+            (funcall end-point-func))
+        (move-marker ins-point (point))
+        (insert (delete-and-extract-region beg end))
+        (goto-char ins-point)
+        (if folded (outline-hide-subtree))
+        (move-marker ins-point nil)
+        ;; Restore the cursor column that was lost when moving to the
+        ;; heading.
+        (move-to-column column)))))
 
 (defun outline-end-of-heading ()
   "Move to one char before the next `outline-heading-end-regexp'."
